@@ -1,51 +1,4 @@
-import turtle
 import math
-
-class Cube:
-    def __init__(self, corner1, corner2):
-        self.corner1 = corner1
-        self.corner2 = corner2
-        self.vertices = []
-        self.edges = [
-            (0, 1), (1, 2), (2, 3), (3, 0),
-            (4, 5), (5, 6), (6, 7), (7, 4),
-            (0, 4), (1, 5), (2, 6), (3, 7)
-        ]
-        self.compute_vertices()
-    
-    def compute_vertices(self):
-        x1, y1, z1 = self.corner1
-        x2, y2, z2 = self.corner2
-        x_min, x_max = min(x1, x2), max(x1, x2)
-        y_min, y_max = min(y1, y2), max(y1, y2)
-        z_min, z_max = min(z1, z2), max(z1, z2)
-        
-        self.vertices = [
-            (x_min, y_min, z_min),
-            (x_max, y_min, z_min),
-            (x_max, y_min, z_max),
-            (x_min, y_min, z_max),
-            (x_min, y_max, z_min),
-            (x_max, y_max, z_min),
-            (x_max, y_max, z_max),
-            (x_min, y_max, z_max)
-        ]
-    
-    def draw(self, player, drawer):
-        projected = []
-        for vertex in self.vertices:
-            proj, zcam = player.project(vertex)
-            projected.append((proj, zcam))
-        
-        for edge in self.edges:
-            i, j = edge
-            if projected[i][1] > 0 and projected[j][1] > 0:
-                p1 = projected[i][0]
-                p2 = projected[j][0]
-                drawer.penup()
-                drawer.goto(p1[0], p1[1])
-                drawer.pendown()
-                drawer.goto(p2[0], p2[1])
 
 class Cube:
     def __init__(self, corner1, corner2):
@@ -107,6 +60,8 @@ class Player:
         
         self.pressed = [False] * 8
         
+        self.touching = False
+        
         self.functions = [self.move_forward,
                         self.move_backward,
                         self.strafe_left,
@@ -120,6 +75,10 @@ class Player:
     def update(self):
         self.y += self.vy
         self.vy -= 1
+        
+        if self.y < -2000:
+            self.x, self.y, self.z = (0, 100, 0)
+            self.vy = 0
         
         for i in range(8):
             if self.pressed[i]:
@@ -167,7 +126,9 @@ class Player:
         self.pressed[key_type] = False
         
     def jump(self):
-        self.vy = 20
+        if self.touching:
+            self.vy = 20
+            self.touching = False
     
     def move_forward(self):
         fx, fy, fz = self.forward_vector()
@@ -208,15 +169,33 @@ class Player:
             self.pitch = math.radians(89)
     
     def collision(self, world_objects):
-        for object in world_objects:
-            if min(object.corner1[0], object.corner2[0]) > self.x or max(object.corner1[0], object.corner2[0]) < self.x: continue
+        # Handle vertical collision as before.
+        if self.vy < -3:
+            self.touching = False
+
+        for obj in world_objects:
+            # Determine the bounds of the cube.
+            x_min = min(obj.corner1[0], obj.corner2[0])
+            x_max = max(obj.corner1[0], obj.corner2[0])
+            y_min = min(obj.corner1[1], obj.corner2[1])
+            y_max = max(obj.corner1[1], obj.corner2[1])
+            z_min = min(obj.corner1[2], obj.corner2[2])
+            z_max = max(obj.corner1[2], obj.corner2[2])
             
-            if min(object.corner1[2], object.corner2[2]) > self.z or max(object.corner1[2], object.corner2[2]) < self.z: continue
+            if x_min > self.x or x_max < self.x: continue
             
-            high = max(object.corner1[1], object.corner2[1])
-            if high > self.y and min(object.corner1[1], object.corner2[1]) < self.y:
-                self.y = high
-                self.vy = 0
+            if z_min > self.z or z_max < self.z: continue
+            
+            if y_max > self.y and y_min < self.y:
+                
+                if self.vy > 0:
+                    self.y = y_min
+                    self.vy = 0
+                else:
+                    self.y = y_max
+                    self.vy = 0
+                    self.touching = True
+
 
 class EventHandler:
     def __init__(self, drawer, world_objects, player):

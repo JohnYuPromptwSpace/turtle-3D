@@ -1,5 +1,4 @@
 import turtle
-import math
 
 from essential_codes import Cube, Player, EventHandler
 
@@ -27,7 +26,8 @@ drawer.color("white")
 player = Player(x=0, y=0, z=0)
 
 coords = [
-    ((-300, -150, -300), (300, -50, 300))
+    ((-300, -150, -300), (300, -50, 300)),
+    ((-300, -150, 400), (300, -50, 1000))
 ]
 
 world_objects = []
